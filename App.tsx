@@ -1,22 +1,36 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, SectionList } from 'react-native';
 import RadioButton from './components/RadioButton';
-
 import { data } from './data/data'
-import { StyleSheet, Text, View, FlatList } from 'react-native';
+
+type DataItem = {
+  id: string;
+  value: string;
+};
+
+type SectionData = {
+  id: number;
+  title: string;
+  data: DataItem[];
+  disabled?: string[];
+};
 
 export default function App() {
 
-  // State of fetched data. Supposing we simulated a data fetched and stored them in a hook
-  const [fetchedData, setFetchedData] = useState(data.menus);
-  const [fetchedRules, setFetchedRules] = useState(data.rules);
+  // State of fetched data. Supposing we simulated a data fetched and then stored them in a hook
+  // Supposing this is a hook (fetchedData and fetchedRules)
+  const fetchedData = data.menus.map((menu, index) => ({
+    id: index,
+    title: `Menu ${index}`,
+    data: menu
+  }));
+  const fetchedRules = data.rules;
 
   // Sets the active category in the state
-  const [activeCategory, setActiveCategory] = useState<string[]>([])
-  const [restriction, setRestrictions] = useState<string[]>([])
+  const [activeCategory, setActiveCategory] = useState<string[]>([]);
 
-
-  const selectCategory = (props: string) => {
+  // added useCallback to memoize the function
+  const selectCategory = useCallback((props: string) => {
     setActiveCategory(activeCategory => {
       const index = activeCategory.indexOf(props);
       if (index !== -1) {
@@ -27,43 +41,58 @@ export default function App() {
         return [...activeCategory, props];
       }
     });
-  };
-
-
+  }, []);
 
   // Check restrictions of main dishes based on selected food category
   // Converts the array to key value pair and returns the value whose key are part of the active selected categories
-  useEffect(() => {
-    const result = Object.entries(fetchedRules)
-      .filter(([key, _]) => activeCategory.includes(key))
-      .flatMap(([_, value]) => value.map(String));
-    setRestrictions(result)
-  }, [activeCategory])
+  // Memoize the restrictions
+  const restrictions = useMemo(() => {
+    return Object.entries(fetchedRules)
+      .filter(([key, _]: [string, any]) => activeCategory.includes(key))
+      .reduce((acc: any[], [_, value]: [string, any[]]) => [...acc, ...value], []);
+  }, [activeCategory, fetchedRules]);
 
+  // Preparing the section list from the fetched data in data.ts
+  const sectionsData: SectionData[] = [
+    {
+      id: 0,
+      title: 'Select Restriction',
+      data: fetchedData[0].data,
+    },
+    {
+      id: 1,
+      title: 'Select a Dish',
+      data: fetchedData[1].data,
+      disabled: restrictions,
+    },
+    {
+      id: 2,
+      title: 'Select an Add-on',
+      data: fetchedData[2].data,
+      disabled: restrictions,
+    },
+  ];
+
+  // Render screen
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionHeader}>Select Restriction</Text>
-      <FlatList
-        data={fetchedData[0]}
-        renderItem={
-          ({ item }) => <RadioButton data={item} enabled={true} onChildData={selectCategory} />
-        }
-      />
-
-      <Text style={styles.sectionHeader}> Select a Dish</Text>
-      <FlatList
-        data={fetchedData[1]}
-        renderItem={
-          ({ item }) => <RadioButton data={item} enabled={restriction.includes(item.id) ? false : true} onChildData={() => { }} />
-        }
-      />
-
-      <Text style={styles.sectionHeader}>Select an Add-on</Text>
-      <FlatList
-        data={fetchedData[2]}
-        renderItem={
-          ({ item }) => <RadioButton data={item} enabled={restriction.includes(item.id) ? false : true} onChildData={() => { }} />
-        }
+      <SectionList
+        sections={sectionsData}
+        keyExtractor={(item, index) => item.id + index}
+        renderSectionHeader={({ section: { title } }) => (
+          <Text style={styles.sectionHeader}>{title}</Text>
+        )}
+        renderItem={({ item, section }) => (
+          <RadioButton
+            data={item}
+            enabled={
+              activeCategory.length === 0 && section.id !== 0
+                ? false
+                : !section.disabled || !section.disabled.includes(item.id)
+            }
+            onSelect={selectCategory}
+          />
+        )}
       />
     </View>
   );
@@ -79,6 +108,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sectionHeader: {
-    marginBottom: 5
-  }
+    marginVertical: 10,
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
 });

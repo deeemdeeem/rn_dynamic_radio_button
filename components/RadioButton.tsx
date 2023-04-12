@@ -1,41 +1,42 @@
-import { View, Text, Pressable, StyleSheet, SafeAreaView } from 'react-native'
-import React, { useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import React, { useState, useCallback } from 'react'
 
 export interface RadioProps {
   id: string;
   value: string;
 }
 
-interface RadioButtonProps {
+type RadioButtonProps = {
   data: RadioProps;
   enabled: boolean;
-  onChildData: (data: string) => void;
+  onSelect: (id: string) => void;
 }
 
-const RadioButton: React.FC<RadioButtonProps> = ({ data, enabled, onChildData }) => {
+const RadioButton = React.memo(({ data, enabled, onSelect }: RadioButtonProps) => {
   // States
   const [selected, setSelected] = useState(false);
 
   // Functions
-
-  const selectItem = () => {
+  const selectItem = useCallback(() => {
     if (enabled) {
       setSelected(!selected)
-      onChildData(data.id)
+      onSelect(data.id)
     } else {
-      onChildData("")
+      onSelect("")
     }
-  }
+  }, [enabled, selected, data.id, onSelect]);
+
+  const radioButtonStyle = [styles.radioButton, selected && styles.radioButtonSelected];
 
   return (
-    <SafeAreaView style={styles.radioContainer}>
-      <Pressable disabled={!enabled} onPress={() => selectItem()} style={selected ? styles.radioButtonSelected : styles.radioButton} />
+    <View style={styles.radioContainer}>
+      <TouchableOpacity disabled={!enabled} onPress={selectItem} style={radioButtonStyle} />
       <View style={styles.radioTextContainer}>
         <Text style={enabled ? styles.radioText : styles.radioTextDisabled}>{data.value}</Text>
       </View>
-    </SafeAreaView>
+    </View>
   )
-}
+})
 
 const styles = StyleSheet.create({
   radioText: {
@@ -60,18 +61,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderColor: '#90D5EC',
     borderWidth: 2,
-    backgroundColor: 'white',
     width: 20,
     height: 20
   },
   radioButtonSelected: {
-    borderRadius: 20,
-    borderColor: '#90D5EC',
-    borderWidth: 2,
     backgroundColor: '#C5E3EC',
-    width: 20,
-    height: 20
   }
 });
 
-export default RadioButton
+export default RadioButton;
+
